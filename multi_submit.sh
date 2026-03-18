@@ -12,12 +12,4 @@ module load aocc/5.0.0
 module load aocl/5.0.0
 sbcl --dynamic-space-size 16000 --load "build.lisp" --quit
 
-for h in 50 100 150
-do
-    for f in 0.4 0.3 0.2 0.1 0
-    do
-        export HEIGHT=$h
-        export FLOATATION=$f
-        sbatch batch_template_worker.sh
-    done
-done
+sbatch batch_template_worker.sh

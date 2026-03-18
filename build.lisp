@@ -2,11 +2,11 @@
 (sb-ext:restrict-compiler-policy 'debug 0 0)
 (sb-ext:restrict-compiler-policy 'safety 0 0)
 (setf *block-compile-default* t)
-
-(ql:quickload :cl-mpm/examples)
-(in-package :cl-mpm/examples)
-
+(ql:quickload :cl-mpm/settings)
 (setf cl-mpm/settings::*optimise-setting* cl-mpm/settings::*optimise-speed*)
+(ql:quickload :cl-mpm/examples/ice/slope-stability)
+(in-package   :cl-mpm/examples/ice/slope-stability)
+
 
 (defun main (&optional args)
 	(load "template.lisp"))
