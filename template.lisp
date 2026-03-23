@@ -5,13 +5,19 @@
   (format t "Thread count ~D~%" threads))
 
 (defun run (&key (output-dir (format nil "./output/"))
-              (csv-dir (format nil "./output/"))
+              (csv-dir nil)
               (csv-filename (format nil "load-disp.csv")))
+  (unless csv-dir
+    (setf csv-dir output-dir) )
 
   (ensure-directories-exist output-dir)
   (ensure-directories-exist csv-dir)
-  (cl-mpm/dynamic-relaxation::elastic-static-solution
-   *sim*)
+  (let ((eps (cl-mpm/penalty::bc-penalty-epsilon *penalty*)))
+    (setf (cl-mpm/penalty::bc-penalty-epsilon *penalty*) 1d-15)
+    (cl-mpm/dynamic-relaxation::elastic-static-solution
+     *sim*
+     :elastic-solver (type-of *sim*))
+    (setf (cl-mpm/penalty::bc-penalty-epsilon *penalty*) eps))
   (let* ((lstps 50)
          (total-disp -1d0)
          (current-disp 0d0)
@@ -20,8 +26,11 @@
                                             (cl-mpm/utils:get-vector (cl-mpm/particle::mp-displacement mp) :y))
                                           #'min))
          (step 0))
-    (defparameter *data-disp* (list 0d0))
-    (defparameter *data-load* (list 0d0))
+    (defparameter *data-disp* (list))
+    (defparameter *data-load* (list))
+    (push disp-0 *data-disp*)
+    (push (get-load) *data-load*)
+
     (loop for f in (uiop:directory-files (uiop:merge-pathnames* "./outframes/")) do (uiop:delete-file-if-exists f))
 
     (vgplot:close-all-plots)
@@ -45,16 +54,27 @@
         (save-csv csv-dir csv-filename *data-disp* *data-load*)
         (incf step))
       :load-steps lstps
-      :max-adaptive-steps 10
+      :max-adaptive-steps 20
       :enable-plastic t
       :enable-damage t
       :damping 1d0;(sqrt 2d0)
-      :max-damage-inc 0.5d0
-      :substeps 10
+      :max-damage-inc 0.2d0
+      :substeps 50
       :criteria 1d-3
-      :save-vtk-dr t
+      :save-vtk-dr nil
       :save-vtk-loadstep t
       :dt-scale 1d0))))
 
-(setup :refine *refine*)
+(setup :refine *refine*
+       :l-scale (* *refine* 1d0)
+       :angle 16.7d0
+       :angle-r 10d0
+       :gf 10000d0
+       :mps 4
+       :rt 1d0
+       :rc 0.9d0)
+;(setf (cl-mpm::sim-ghost-factor *sim*) nil
+;      (cl-mpm/aggregate::sim-enable-aggregate *sim*) t)
+;(setf (cl-mpm/damage::sim-enable-length-localisation *sim*) t)
+(setf (cl-mpm/damage::sim-enable-ekl *sim*) t)
 (run :output-dir (format nil "./data/output-~E/" *refine*))

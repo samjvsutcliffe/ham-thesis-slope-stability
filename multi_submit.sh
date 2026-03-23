@@ -4,12 +4,19 @@
 export REFINE=1
 read -p "Do you want to clear previous data? (y/n)" yn
 case $yn in
-    [yY] ) echo "Removing data";rm data/*; break;;
-    [nN] ) break;;
+    [yY] ) echo "Removing data";rm -r data/*; break;;
+    qnN] ) break;;
 esac
 set -e
 module load aocc/5.0.0
 module load aocl/5.0.0
 sbcl --dynamic-space-size 16000 --load "build.lisp" --quit
 
-sbatch batch_template_worker.sh
+export REFINE=1
+sbatch batch_ss.sh
+export REFINE=2
+sbatch batch_ss.sh
+export REFINE=3
+sbatch batch_ss.sh
+export REFINE=4
+sbatch batch_ss.sh

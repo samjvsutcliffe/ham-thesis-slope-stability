@@ -22,63 +22,58 @@ from matplotlib.patches import Rectangle
 from matplotlib.collections import PatchCollection
 from matplotlib import cm
 from multiprocessing import Pool
-
-
-
 top_dir = "./data/"
-output_regex = re.compile("data-*")
+output_regex = re.compile("output-*")
 output_list = list(filter(output_regex.match,os.listdir(top_dir)))
 output_list.sort()
-for i,out in enumerate(output_list):
-    print("{}: {}".format(i,out))
-data_h = []
-data_e = []
-for f in output_list:
-    L = 1
-    output_dir = "{}./{}".format(top_dir,f)
-    x,y = f.split("-")[-1][:-4].split("_")
-    refine = float(x)
-    mps = int(y)
-    df = pd.read_csv(output_dir)
-    # y = df["Y"].values
-    # syy = df["SYY"].values
-    # syy_ref = df["SYY-REF"].values
-    # vp = df["VP"].values
-    # syy-syy_ref
-    h = L / 2**refine
-    e = float(df["ERROR"].values[0].replace("d","e"))
-    #e = np.linalg.norm(syy-syy_ref)*vp[0]/(np.sum(vp)))
+if len(output_list) > 1:
+    for i,out in enumerate(output_list):
+        print("{}: {}".format(i,out))
+    output_dir = "{}./{}/".format(top_dir,output_list[int(input())])
+else:
+    output_dir = "{}./{}/".format(top_dir,output_list[0])
+df = pd.read_csv(output_dir+"conv.csv")
+sub_steps = 1
+iters = df["iter"].values * sub_steps
+step = df["step"].values
+oobf = df["oobf"].values
+energy = df["energy"].values
+plastic = df["plastic"].values
+plastic = plastic / np.max(plastic)
+damage = df["damage"].values
+damage = damage / np.max(damage)
+fig = plt.figure()
+ax = fig.gca()
+# ax.plot(iters,oobf,label="OOBF")
+# ax.plot(iters,energy,label="Energy")
+ax.plot(iters,oobf,label="Residual")
+# ax.plot(iters,energy,label="Deformation")
 
-    data_h.append(h)
-    data_e.append(e)
+thresh_scale = 1e-2
+thresh_scale_damage = 1e-3
+ax.axhline(thresh_scale,c="green",ls="--")
+# ax.set_ylim(bottom=0,top=thresh_scale_damage*2)
+ax.set_xlabel("Iterations")
+ax.set_ylabel("Convergence criteria")
+ax.set_yscale("log")
+# ax.set_yscale("log")
+ax_damage = ax.twinx()
+ax_damage.scatter(iters,damage,label="Damage",c="red")
+ax_damage.plot(iters,plastic,label="Plastic",c="black")
+ax_damage.set_ylim(bottom=0)
+ax_damage.set_ylabel("Plastic strain evolution")
 
-data_h = np.array(data_h)
-data_e = np.array(data_e)
-plt.scatter(1/data_h,data_e,label="MPM")
+offset = 1
+for i in range(len(df)-1):
+    if step[i] != step[i+1]:
+        ##Transition found
+        x = iters[i+1]
+        ax.axvline(x,color="black")
+        ax.text(x+offset,-0.30,'Step {}'.format(step[i+1]),rotation=90)
 
-m,b = np.polyfit(np.log(1/data_h),np.log(data_e),1)
-print(m)
-
-def plot_tri(offset,size):
-    xoffset = 10**offset[0]
-    yoffset = 10**offset[1]
-    xsize = 1+size[0]
-    ysize = 1+size[1]
-    x = [xoffset*xsize,xoffset*xsize ,xoffset]
-    y = [yoffset      ,yoffset/ysize ,yoffset]
-    pos = np.vstack((x,y)).transpose()
-    print(pos)
-    t1 = plt.Polygon(pos,color="black",fill=False,lw=1)
-    plt.gca().add_patch(t1)
-    plt.text((xoffset*xsize)*1.1,yoffset/(ysize**0.6),size[1],size="x-small")
-    # plt.plot(x,y)
-
-#plot_tri([1,-3],[1,1])
-plot_tri([0.5,-2.0],[1,1])
-
-plt.xlabel("1/h")
-plt.ylabel("normalised error")
-plt.xscale("log")
-plt.yscale("log")
-#plt.tight_layout()
+lines, labels = ax.get_legend_handles_labels()
+lines2, labels2 = ax_damage.get_legend_handles_labels()
+ax_damage.legend(lines + lines2, labels + labels2, loc=0)
+plt.tight_layout()
 plt.show()
+
